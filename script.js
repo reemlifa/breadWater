@@ -7,11 +7,17 @@ let catcher, fallingObject;
 let catcherImg, fallingObjectImg;
 let score = 0;
 
-
 /* PRELOAD LOADS FILES */
 function preload() {
-  catcherImg = loadImage("assets/water.png");
-  fallingObjectImg = loadImage("assets/bread.png");
+  catcherImg = loadImage("./water.png", 
+    img => console.log("✅ Catcher image loaded successfully!", img), 
+    err => console.log("❌ Error loading catcher image", err)
+  );
+
+  fallingObjectImg = loadImage("./bread.png", 
+    img => console.log("✅ Falling object image loaded successfully!", img), 
+    err => console.log("❌ Error loading falling object image", err)
+  );
 }
 
 /* SETUP RUNS ONCE */
@@ -19,51 +25,46 @@ function setup() {
   createCanvas(400, 400);
   background("#494841");
 
-
-  // enter button 
+  // Enter button 
   enterButton = new Sprite(width / 2, height / 2 + 30);
   enterButton.w = 150;
   enterButton.h = 65;
   enterButton.collider = "kinematic";
   enterButton.color = 'plum';
-  enterButton.text = "enter";
+  enterButton.text = "Enter";
 
-
-  // move play and retry button off screen
+  // Move play and retry buttons off-screen
   playButton = new Sprite(-500, -500);
   retryButton = new Sprite(-500, -500);
+  retryButton.layer = 1; // Ensure it's on a separate layer so objects ignore it
   screen = 0;
 
-  //Create catcher 
-  catcher = new Sprite(catcherImg, -200, -340, 60, 50, "kinematic");
-
-  //Create falling object
-  fallingObject = new Sprite(fallingObjectImg, random(width), -150, -150, 20);
-  fallingObject.collider = "kinematic";
-
+  // Create catcher 
+  catcher = new Sprite(catcherImg, -500, -500, 60, 50, "kinematic"); // Start off-screen
   catcherImg.resize(60, 0);
+  catcher.debug = true;
+
+  // Create falling object (start off-screen)
+  fallingObject = new Sprite(fallingObjectImg, -500, -500, 20, 20);
+  fallingObject.collider = "dynamic";
+  fallingObject.vel.y = 0; // Initially not falling
+  fallingObject.vel.x = 0; // Ensure no sideways movement
+  fallingObject.rotationLock = true; // Prevent any rotation
+  fallingObject.layer = 0; // Different layer than retry button to ignore collisions
+  fallingObject.debug = true;
   fallingObjectImg.resize(60, 0);
-
-  // resetFallingObject();
 }
-
-function resetFallingObject() {
-  let randomObject = random([fallingObjectImg]);
-  fallingObject = new Sprite(randomObject, random(width), 150, 150, 20);
-  fallingObject.rotationLock = true;
-}
-
 
 /* DRAW LOOP REPEATS */
 function draw() {
-
-  if (screen == 0) { // just need to put text back in screen 0 instead of setup()
+  if (screen == 0) {
+    background("#494841");
     fill("#FFFADD");
     textAlign(CENTER);
     textSize(50);
     text("BreadWater", width / 2, height / 2 - 75);
+
     if (enterButton.mouse.presses()) {
-      print("pressed");
       showScreen1();
       screen = 1;
     }
@@ -79,23 +80,14 @@ function draw() {
   }
 
   if (screen == 2) {
-    background("#494841"); // This makes sure the background is always the bottom most layer and the trailing effect goes away thank you!! yeah ofc lmk if the water thing doesnt work ill come back to it ill mark it as solved for now
-
+    background("#494841");
 
     if (retryButton.mouse.presses()) {
-      showScreen0();
-      screen = 0;
+      showScreen2(); // Restart the game without affecting falling object
+      screen = 2;
     }
 
-    //If fallingObject reaches bottom, move back to top
-    if (fallingObject.y >= height) {
-      fallingObject.y = 0;
-      fallingObject.x = random(width);
-      fallingObject.vel.y = random(1,5);
-    }
-
-
-    //Move catcher
+    // Move catcher
     if (kb.pressing("left")) {
       catcher.vel.x = -3;
     } else if (kb.pressing("right")) {
@@ -104,55 +96,43 @@ function draw() {
       catcher.vel.x = 0;
     }
 
-    //Stop catcher at edges of screen
-    if (catcher.x < 50) {
-      catcher.x = 50;
-    }
-    else if (catcher.x > 350) {
-      catcher.x = 350;
+    // Keep catcher within screen bounds
+    catcher.x = constrain(catcher.x, 50, width - 50);
+
+    // If fallingObject reaches bottom, reset it and decrease score
+    if (fallingObject.y >= height) {
+      resetFallingObject();
+      score -= 1;
     }
 
-    //If fallingObject collides with catcher, move back to top
+    // If fallingObject collides with catcher, reset position and increase score
     if (fallingObject.collides(catcher)) {
-      fallingObject.y = 0;
-      fallingObject.x = random(width);
-      fallingObject.vel.y = random(1,5);
-      fallingObject.direction = "down";
-      score = score + 1;
-    } 
-    if (fallingObject.y >= 398) {
-      score = score - 1;
+      print("Collision detected!");
+      resetFallingObject();
+      score += 1;
     }
   }
 }
 
-
 /* FUNCTIONS TO DISPLAY SCREENS */
-
-// You just had to get the enter button back onto the screen and remove the retry button! Got it thank you!
-// how did you get the water to not repeat by the way?
-// line 81
 function showScreen0() {
   enterButton.pos = { x: width / 2, y: height / 2 + 30 };
   retryButton.x = 1000;
 
-  // Remove bread and water off the screen as well here:
-
-  // i just want the bread and water removed from screen 0 and 1 
+  // Remove bread and water off the screen
   catcher.pos = { x: -500, y: -500 };
   fallingObject.pos = { x: -500, y: -500 };
+  fallingObject.vel.y = 0;
+  fallingObject.vel.x = 0;
 }
-
 
 function showScreen1() {
   background("#494841");
   textSize(20);
-  text("The rules of the game go in here",
-    width / 2,
-    height / 2 - 50);
-  // put the enter button off screen
+  text("The rules of the game go in here", width / 2, height / 2 - 50);
+
+  // Hide enter button, show play button
   enterButton.pos = { x: -100, y: -100 };
-  // put the play button on screen
   playButton.pos = { x: width / 2, y: height / 2 + 50 };
   playButton.w = 150;
   playButton.h = 65;
@@ -163,22 +143,29 @@ function showScreen1() {
 
 function showScreen2() {
   background("#494841");
-  retryButton.pos = { x: 350, y: 35 };
-  retryButton.w = 80;
-  retryButton.h = 30;
-  retryButton.collider = "kinematic";
-  textSize(10);
-  retryButton.text = 'retry';
-  textSize(20);
-  text("The game goes in here",
-    width / 2,
-    height / 2 - 50);
 
-  // put the play button off screen
+  // Retry button should not block falling objects
+  retryButton.pos = { x: 350, y: 35 };
+  retryButton.w = 50;
+  retryButton.h = 30;
+  retryButton.collider = "kinematic"; // Keep it interactive
+  retryButton.layer = 1; // Move it to a separate layer
+  retryButton.text = 'Retry';
+
+  // Hide play button
   playButton.pos = { x: -100, y: -100 };
 
-  // put catcher back on position
+  // Reset catcher position
   catcher.pos = { x: 200, y: 340 };
-  fallingObject.pos = { x : random(width), y: 20 }
-  fallingObject.vel.y = random(1, 5); 
+
+  // Reset falling object position properly
+  resetFallingObject();
+}
+
+/* RESET FALLING OBJECT FUNCTION */
+function resetFallingObject() {
+  fallingObject.pos = { x: random(50, 300), y: 0 }; // Ensure it starts in the center 300px
+  fallingObject.vel.y = random(1, 5); // Set a random downward velocity
+  fallingObject.vel.x = 0; // Ensure no sideways movement
+  fallingObject.rotationLock = true; // Prevent any unwanted rotation
 }
